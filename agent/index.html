@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Clipping</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --fond: #ECEEF3;
+  --surface: #FFFFFF;
+  --encre: #171A2E;
+  --gris: #63687F;
+  --trait: #D9DCE6;
+  --indigo: #4A35F5;
+  --vert: #0B8A56;
+  --ambre: #B86A00;
+  --titre: "Bricolage Grotesque", "Segoe UI", sans-serif;
+  --texte: "Public Sans", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--fond); color: var(--encre); font: 400 15px/1.5 var(--texte); display: grid; grid-template-columns: 216px minmax(0, 1fr); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--indigo); outline-offset: 2px; }
+a { color: inherit; }
+
+/* navigation */
+.nav { background: var(--encre); color: #fff; padding: 28px 16px 20px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
+.nav .marque { font: 700 22px/1.1 var(--titre); padding: 0 10px 22px; letter-spacing: -.01em; }
+.nav button { background: none; border: 0; color: #B9BDD3; text-align: left; padding: 9px 10px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+.nav button:hover { color: #fff; }
+.nav button[aria-current="page"] { background: #2A2E4A; color: #fff; }
+.nav .bas { margin-top: auto; font-size: 13px; color: #8F94B0; padding: 0 10px; }
+.nav .bas button { padding: 6px 0; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+
+main { padding: 36px 44px 80px; max-width: 1180px; width: 100%; min-width: 0; }
+h1 { font: 700 40px/1.05 var(--titre); letter-spacing: -.02em; margin: 0; }
+h2 { font: 700 21px/1.2 var(--titre); margin: 44px 0 6px; }
+.sous { color: var(--gris); margin: 0 0 16px; max-width: 70ch; }
+.entete { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.releve { color: var(--gris); margin: 8px 0 0; }
+
+.btn { background: var(--surface); border: 1px solid var(--trait); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 500; }
+.btn:hover { border-color: var(--encre); }
+.btn.fort { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+.btn.fort:hover { background: #3924DB; }
+.btn[disabled] { opacity: .55; cursor: wait; }
+.btn.petit { padding: 4px 10px; font-size: 13px; }
+
+/* jauge de budget : la partie hachurée est déjà dépensée, la partie pleine reste à gagner */
+.jauge { height: 12px; border-radius: 3px; background: repeating-linear-gradient(135deg, #C9CDDA 0 2px, transparent 2px 5px); border: 1px solid var(--trait); position: relative; overflow: hidden; }
+.jauge i { position: absolute; inset: 0 0 0 auto; background: var(--indigo); }
+.jauge.bas i { background: var(--ambre); }
+.jauge.large { height: 18px; }
+
+/* mes campagnes */
+.suivie { background: var(--surface); border-radius: 12px; padding: 20px 22px; margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px 36px; align-items: center; }
+.suivie h3 { font: 700 19px/1.25 var(--titre); margin: 0; }
+.suivie h3 a { text-decoration: none; }
+.suivie h3 a:hover { text-decoration: underline; }
+.suivie .meta { color: var(--gris); font-size: 14px; margin-top: 2px; }
+.suivie .reste { font: 700 26px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.suivie .reste small { font: 400 14px var(--texte); color: var(--gris); }
+.suivie .faits { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 28px; font-size: 14px; border-top: 1px solid var(--trait); padding-top: 12px; }
+.suivie .faits b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.alerte { color: var(--ambre); font-weight: 600; }
+.bien { color: var(--vert); font-weight: 600; }
+
+/* tableaux */
+.filtres { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 18px 0 12px; }
+.filtres input[type=search] { background: var(--surface); border: 1px solid var(--trait); border-radius: 8px; padding: 8px 12px; width: 260px; }
+.filtres select { background: var(--surface); border: 1px solid var(--trait); border-radius: 8px; padding: 8px 10px; }
+.filtres label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.filtres input[type=checkbox] { accent-color: var(--indigo); width: 16px; height: 16px; }
+.cadre { background: var(--surface); border-radius: 12px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-weight: 600; color: var(--gris); padding: 12px 12px 8px; white-space: nowrap; }
+td { padding: 10px 12px; border-top: 1px solid var(--trait); vertical-align: middle; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td:first-child { min-width: 230px; }
+td .nom { font-weight: 600; text-decoration: none; }
+td .nom:hover { text-decoration: underline; }
+td .org { color: var(--gris); font-size: 13px; }
+td.budget { min-width: 170px; }
+td.budget span { font-variant-numeric: tabular-nums; font-size: 13px; }
+.etiq { display: inline-block; white-space: nowrap; font-size: 12px; font-weight: 600; border-radius: 4px; padding: 1px 6px; margin-left: 6px; background: #E5E2FE; color: #2F1FC2; vertical-align: 1px; }
+.etiq.neuf { background: #D8F1E5; color: #06603B; }
+.etiq.cand { background: #F6E7CC; color: #7A4700; }
+.vide { padding: 28px; color: var(--gris); }
+
+/* clips */
+details.dossier { background: var(--surface); border-radius: 12px; margin-top: 12px; padding: 0 22px; }
+details.dossier summary { cursor: pointer; padding: 16px 0; font: 700 18px var(--titre); }
+details.dossier summary span { font: 400 14px var(--texte); color: var(--gris); margin-left: 8px; }
+.desc { font-family: inherit; background: var(--fond); border-radius: 8px; padding: 12px 14px; white-space: pre-wrap; font-size: 14px; margin: 0 0 10px; max-width: 80ch; }
+.actions { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; padding-bottom: 22px; }
+.grille figure { margin: 0; }
+.grille video { width: 100%; aspect-ratio: 9 / 16; background: var(--encre); border-radius: 8px; display: block; }
+.grille figcaption { font-size: 13px; margin-top: 6px; overflow-wrap: anywhere; }
+.grille figcaption small { color: var(--gris); display: block; }
+
+/* rappel des 30 minutes */
+.rappel { background: #FDE8E8; border: 2px solid #C81E1E; color: #8A1111; border-radius: 12px; padding: 14px 18px; margin: 12px 0; max-width: 860px; }
+.rappel b { display: block; font: 700 17px var(--titre); color: #C81E1E; margin-bottom: 2px; }
+.pub .delai { color: #C81E1E; font-weight: 600; font-size: 13px; display: block; }
+#message.rouge { background: #C81E1E; font-weight: 600; }
+
+/* planning */
+.jour { background: var(--surface); border-radius: 12px; margin-top: 12px; padding: 4px 0; }
+.jour.aujourdhui { outline: 2px solid var(--indigo); }
+.jour h3 { font: 700 17px var(--titre); margin: 0; padding: 12px 20px 8px; }
+.jour h3 small { font: 600 12px var(--texte); background: #E5E2FE; color: #2F1FC2; border-radius: 4px; padding: 1px 6px; margin-left: 8px; vertical-align: 2px; }
+.pub { display: grid; grid-template-columns: 54px 92px minmax(0, 1fr) auto auto; gap: 4px 14px; padding: 10px 20px; border-top: 1px solid var(--trait); align-items: center; font-size: 14px; }
+.pub .h { font-variant-numeric: tabular-nums; font-weight: 600; }
+.pub .c b { font-weight: 600; }
+.pub .c span { color: var(--gris); }
+.pub.fait .c, .pub.fait .h, .pub.fait .pl { color: var(--gris); text-decoration: line-through; }
+.etat { font-size: 12px; font-weight: 600; border-radius: 4px; padding: 2px 7px; white-space: nowrap; background: #E6E8EF; color: #454A63; }
+.etat.pret { background: #E5E2FE; color: #2F1FC2; }
+.etat.programme, .etat.publie { background: #D8F1E5; color: #06603B; }
+.etat.attente, .etat.brouillon { background: #F6E7CC; color: #7A4700; }
+@media (max-width: 700px) { .pub { grid-template-columns: 54px 1fr auto; } .pub .pl { display: none; } }
+
+/* avis du radar */
+.avis { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; border-radius: 6px; padding: 2px 8px; font-size: 13px; font-weight: 600; background: #E6E8EF; color: #454A63; }
+.avis b { font: 700 16px var(--titre); font-variant-numeric: tabular-nums; }
+.avis.cibler { background: #D8F1E5; color: #06603B; }
+.avis.surveiller { background: #F6E7CC; color: #7A4700; }
+.raisons { font-size: 13px; color: var(--gris); margin-top: 3px; max-width: 46ch; }
+.raisons .p { color: var(--vert); }
+.raisons .c { color: var(--ambre); }
+
+/* tâches */
+.taches { background: var(--surface); border-radius: 12px; list-style: none; margin: 0; padding: 4px 0; }
+.taches li { display: grid; grid-template-columns: 22px 1fr auto; gap: 4px 12px; padding: 12px 20px; border-top: 1px solid var(--trait); align-items: start; }
+.taches li:first-child { border-top: 0; }
+.taches input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--indigo); cursor: pointer; }
+.taches label { font-weight: 600; cursor: pointer; }
+.taches p { margin: 2px 0 0; font-size: 14px; color: var(--gris); max-width: 72ch; }
+.taches li.fait label { text-decoration: line-through; color: var(--gris); font-weight: 400; }
+.taches li.fait p { display: none; }
+.taches .x { background: none; border: 0; color: var(--gris); cursor: pointer; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; padding: 2px 0; }
+.qui { font-size: 12px; font-weight: 600; border-radius: 4px; padding: 1px 6px; margin-left: 8px; background: #E5E2FE; color: #2F1FC2; white-space: nowrap; }
+.qui.toi { background: #E6E8EF; color: #454A63; }
+#t-form input { background: var(--surface); border: 1px solid var(--trait); border-radius: 8px; padding: 8px 12px; width: min(420px, 100%); }
+
+/* cibles */
+.cible { background: var(--surface); border-radius: 12px; padding: 16px 20px; margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 20px; align-items: start; }
+.cible h3 { font: 700 17px/1.3 var(--titre); margin: 0; }
+.cible h3 a { text-decoration: none; }
+.cible h3 a:hover { text-decoration: underline; }
+.cible .meta { color: var(--gris); font-size: 14px; }
+.cible ul { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; display: flex; flex-wrap: wrap; gap: 2px 20px; }
+.cible li.p::before { content: "+ "; color: var(--vert); font-weight: 700; }
+.cible li.c::before { content: "− "; color: var(--ambre); font-weight: 700; }
+.cible .droite { text-align: right; display: flex; flex-direction: column; gap: 8px; align-items: end; }
+
+/* fiches de format */
+.fiche { background: var(--surface); border-radius: 12px; padding: 20px 24px; margin-top: 12px; }
+.fiche h3 { font: 700 20px var(--titre); margin: 0; }
+.fiche .paie { color: var(--gris); font-size: 14px; margin: 2px 0 12px; }
+.fiche .note { font-weight: 500; max-width: 72ch; margin: 0 0 12px; }
+.fiche h4 { font: 600 14px var(--texte); color: var(--gris); margin: 16px 0 4px; }
+.fiche ul { margin: 0; padding-left: 20px; max-width: 76ch; }
+.fiche .phrases li { font-weight: 600; }
+.fiche .mesure { display: flex; flex-wrap: wrap; gap: 4px 24px; font-size: 14px; background: var(--fond); border-radius: 8px; padding: 10px 14px; }
+.fiche .mesure b { font-variant-numeric: tabular-nums; }
+.fiche .ex { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 6px; }
+.fiche .ex a { text-decoration: none; font-size: 13px; color: var(--gris); }
+.fiche .ex img { width: 100%; border-radius: 6px; display: block; aspect-ratio: 1096 / 384; background: var(--fond); }
+.regles { background: var(--surface); border-radius: 12px; padding: 16px 24px; margin-top: 12px; border-left: 4px solid var(--ambre); }
+.regles h3 { font: 700 16px var(--titre); margin: 0 0 6px; }
+.regles ul { margin: 0; padding-left: 20px; max-width: 80ch; font-size: 14px; }
+
+/* formats */
+.constats { background: var(--surface); border-radius: 12px; padding: 6px 24px 18px; max-width: 860px; }
+.constats h3 { font: 700 17px var(--titre); margin: 18px 0 4px; }
+.constats p, .constats li { max-width: 72ch; }
+.constats ul { margin: 4px 0; padding-left: 20px; }
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0; background: var(--surface); border-radius: 12px; margin-bottom: 12px; }
+.chiffres div { padding: 16px 20px; border-left: 1px solid var(--trait); }
+.chiffres div:first-child { border-left: 0; }
+.chiffres b { display: block; font: 700 24px/1.1 var(--titre); font-variant-numeric: tabular-nums; }
+.chiffres span { color: var(--gris); font-size: 13px; }
+.fclip { background: var(--surface); border-radius: 12px; margin-top: 12px; padding: 16px; display: grid; grid-template-columns: minmax(0, 560px) minmax(220px, 1fr); gap: 20px; align-items: start; }
+.fclip img { width: 100%; border-radius: 6px; display: block; background: var(--fond); aspect-ratio: 1096 / 384; }
+.fclip .vues { font: 700 26px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.fclip .vues small { font: 400 14px var(--texte); color: var(--gris); }
+.fclip dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 10px 0; font-size: 14px; }
+.fclip dt { color: var(--gris); }
+.fclip dd { margin: 0; font-variant-numeric: tabular-nums; }
+.fclip .leg { font-size: 13px; color: var(--gris); overflow-wrap: anywhere; margin: 0 0 8px; }
+.reperes { display: flex; font-size: 12px; color: var(--gris); margin-top: 4px; }
+.reperes span { flex: 1; text-align: center; }
+@media (max-width: 1000px) { .fclip { grid-template-columns: 1fr; } }
+
+/* agent */
+.agent textarea { width: 100%; max-width: 760px; min-height: 130px; background: var(--surface); border: 1px solid var(--trait); border-radius: 12px; padding: 14px 16px; resize: vertical; display: block; }
+.idees { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; max-width: 760px; }
+
+#message { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--encre); color: #fff; padding: 10px 18px; border-radius: 8px; max-width: 80vw; }
+#message[hidden] { display: none; }
+[hidden] { display: none !important; }
+
+@media (max-width: 860px) {
+  body { grid-template-columns: 1fr; }
+  .nav { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px 16px; }
+  .nav .marque { padding: 0 12px 0 4px; }
+  .nav .bas { margin: 0 0 0 auto; }
+  main { padding: 24px 16px 60px; }
+  h1 { font-size: 30px; }
+  .suivie { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="Sections">
+  <div class="marque">Agent Clipping</div>
+  <button data-page="jour" aria-current="page">Aujourd'hui</button>
+  <button data-page="planning">Planning</button>
+  <button data-page="radar">Radar des campagnes</button>
+  <button data-page="formats">Formats qui marchent</button>
+  <button data-page="clips">Mes clips</button>
+  <button data-page="agent">Demander à l'agent</button>
+  <div class="bas"><button id="quitter">Fermer l'outil</button></div>
+</nav>
+
+<main>
+  <section id="jour">
+    <div class="entete">
+      <div>
+        <h1>Aujourd'hui</h1>
+        <p class="releve" id="releve"></p>
+      </div>
+      <button class="btn fort" id="maj">Mettre à jour le radar</button>
+    </div>
+    <h2>À publier aujourd'hui</h2>
+    <div class="rappel" role="note"><b>30 minutes pour déclarer chaque clip</b>Dès qu'un clip est en ligne, soumets son lien sur Content Rewards. Passé 30 minutes, le lien est refusé et les vues ne sont pas payées. Les Shorts YouTube programmés sortent à 19h00 : à déclarer avant 19h30.</div>
+    <div id="pub-jour"></div>
+    <h2>À faire</h2>
+    <p class="sous">Ce qui bloque la suite. Coche quand c'est fait.</p>
+    <ul class="taches" id="taches"></ul>
+    <form id="t-form" class="filtres">
+      <input id="t-texte" placeholder="Ajouter une tâche" aria-label="Ajouter une tâche">
+      <button class="btn">Ajouter</button>
+    </form>
+    <h2>Mes campagnes</h2>
+    <p class="sous">La partie pleine de la jauge est le budget qu'il reste à gagner.</p>
+    <div id="suivies"></div>
+    <h2>Campagnes à cibler</h2>
+    <p class="sous">Les mieux notées par le radar parmi les campagnes en français. La note sert à trier, ce n'est pas une prévision de gains.</p>
+    <div id="cibles"></div>
+    <h2>Nouveautés en français</h2>
+    <p class="sous">Campagnes en français que tu ne suis pas encore, avec au moins 500 $ restants.</p>
+    <div class="cadre" id="nouveautes"></div>
+    <h2>Le marché en ce moment</h2>
+    <p class="sous" id="marche"></p>
+  </section>
+
+  <section id="planning" hidden>
+    <h1>Planning</h1>
+    <p class="releve" style="max-width:70ch">Instagram à 18h30, TikTok à 12h30, YouTube à 19h00. Coche chaque publication quand elle est en ligne. Les Shorts YouTube « programmés » partent tout seuls.</p>
+    <div class="rappel" role="note"><b>30 minutes pour déclarer chaque clip</b>Dès qu'un clip est en ligne, soumets son lien sur Content Rewards. Passé 30 minutes, le lien est refusé et les vues ne sont pas payées. Les Shorts YouTube programmés sortent à 19h00 : à déclarer avant 19h30.</div>
+    <div id="jours"></div>
+  </section>
+
+  <section id="radar" hidden>
+    <h1>Radar des campagnes</h1>
+    <div class="filtres">
+      <input type="search" id="q" placeholder="Chercher une campagne" aria-label="Chercher une campagne">
+      <label><input type="checkbox" id="f-fr" checked> En français</label>
+      <label><input type="checkbox" id="f-libre"> Accès libre</label>
+      <label><input type="checkbox" id="f-yt"> Paie YouTube</label>
+      <label><input type="checkbox" id="f-neuf"> Moins de 7 jours</label>
+      <label><input type="checkbox" id="f-cible"> À cibler seulement</label>
+      <select id="tri" aria-label="Trier">
+        <option value="score">Trier par note</option>
+        <option value="restant">Trier par budget restant</option>
+        <option value="gain_par_clippeur">Trier par gain par clippeur</option>
+        <option value="taux">Trier par taux</option>
+        <option value="vues_par_clip">Trier par vues par clip</option>
+        <option value="age">Trier par date de lancement</option>
+      </select>
+    </div>
+    <p class="sous">La note sur 100 additionne le budget par clippeur, la durée du budget, les vues par clip, la part des vues réellement payée, le taux, l'accès, le seuil de paiement et la langue.</p>
+    <p class="sous" id="compte"></p>
+    <div class="cadre" id="table"></div>
+  </section>
+
+  <section id="formats" hidden>
+    <div class="entete">
+      <div>
+        <h1>Formats qui marchent</h1>
+        <p class="releve" id="f-date"></p>
+      </div>
+      <button class="btn fort" id="f-maj">Refaire l'analyse</button>
+    </div>
+    <h2>Le format à suivre, campagne par campagne</h2>
+    <p class="sous">Une fiche par appli où la campagne paie. Les chiffres viennent des meilleurs clips payés ; les conseils sont écrits par l'agent à partir de leurs images.</p>
+    <div class="filtres"><select id="fi-camp" aria-label="Campagne"></select></div>
+    <div id="fiches"></div>
+    <h2>Ce qu'il faut retenir, toutes campagnes confondues</h2>
+    <div class="constats" id="f-synthese"></div>
+    <h2>Les meilleurs clips payés, image par image</h2>
+    <p class="sous">Chaque bande montre cinq images du clip : le tout début, 1 seconde, 3 secondes, le milieu et la fin. Les trois premières décident si le spectateur reste.</p>
+    <div class="filtres">
+      <select id="f-camp" aria-label="Campagnes"></select>
+      <select id="f-plat" aria-label="Plateforme">
+        <option value="">Toutes les plateformes</option>
+        <option value="tiktok">TikTok</option>
+        <option value="instagram">Instagram</option>
+        <option value="youtube">YouTube</option>
+      </select>
+      <select id="f-tri" aria-label="Trier">
+        <option value="vues">Trier par vues</option>
+        <option value="duree">Trier par durée</option>
+        <option value="coupes_par_10s">Trier par rythme des coupes</option>
+      </select>
+    </div>
+    <div class="chiffres" id="f-chiffres"></div>
+    <p class="sous" id="f-compte"></p>
+    <div id="f-liste"></div>
+  </section>
+
+  <section id="clips" hidden>
+    <h1>Mes clips</h1>
+    <p class="releve">Les dossiers de clips terminés, du plus récent au plus ancien.</p>
+    <div id="dossiers"></div>
+  </section>
+
+  <section id="agent" class="agent" hidden>
+    <h1>Demander à l'agent</h1>
+    <p class="releve" style="margin-bottom:20px;max-width:70ch">Écris ce que tu veux faire. Une fenêtre Claude s'ouvre dans ton dossier de clipping, avec ta demande déjà envoyée.</p>
+    <textarea id="demande" aria-label="Ta demande" placeholder="Par exemple : prépare les premiers clips de Call of Duty MW4"></textarea>
+    <div class="idees" id="idees"></div>
+    <button class="btn fort" id="envoyer">Ouvrir l'agent avec cette demande</button>
+  </section>
+</main>
+<div id="message" role="status" hidden></div>
+
+<script>
+const TOKEN = "__TOKEN__";
+let etat = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nb = (v, d = 0) => v == null ? "–" : v.toLocaleString("fr-FR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const usd = (v, d = 0) => v == null ? "–" : nb(v, d) + " $";
+const NOMS = {tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube", x: "X", facebook: "Facebook"};
+const PLAT = {ti: "TikTok", in: "Instagram", yo: "YouTube", fa: "Facebook", x: "X", tw: "Twitch"};
+const plateformes = r => r.plateformes.split(",").filter(Boolean).map(p => PLAT[p] || p).join(", ");
+
+function dire(texte, rouge) {
+  const m = $("message");
+  m.textContent = texte;
+  m.classList.toggle("rouge", !!rouge);
+  m.hidden = false;
+  clearTimeout(dire.t);
+  dire.t = setTimeout(() => m.hidden = true, rouge ? 20000 : 5000);
+}
+
+async function post(url, data = {}) {
+  const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json", "X-Token": TOKEN}, body: JSON.stringify(data)});
+  if (!r.ok) throw new Error("L'outil ne répond plus. Relance-le depuis le raccourci du bureau.");
+  return r.json();
+}
+
+function jauge(r, large) {
+  const part = r.budget ? Math.max(0, Math.min(100, r.restant / r.budget * 100)) : 0;
+  const bas = part < 20 || (r.jours_restants != null && r.jours_restants < 7);
+  return `<div class="jauge${large ? " large" : ""}${bas ? " bas" : ""}" role="img" aria-label="${nb(part)} % du budget restant"><i style="width:${part}%"></i></div>`;
+}
+
+function etiquettes(r) {
+  let h = "";
+  if (r.nouvelle || r.age_jours <= 7) h += `<span class="etiq neuf">nouvelle</span>`;
+  if (r.candidature) h += `<span class="etiq cand">sur candidature</span>`;
+  return h;
+}
+
+function dessinerJour() {
+  const d = etat.collected_at ? new Date(etat.collected_at) : null;
+  $("releve").textContent = d
+    ? `Dernier relevé le ${d.toLocaleDateString("fr-FR")} à ${d.toLocaleTimeString("fr-FR", {hour: "2-digit", minute: "2-digit"})}, ${nb(etat.campagnes.length)} campagnes.`
+    : "Aucun relevé pour l'instant. Lance une mise à jour.";
+
+  const parId = Object.fromEntries(etat.campagnes.map(r => [r.id, r]));
+  const suivies = etat.suivies.map(id => parId[id]).filter(Boolean);
+  $("suivies").innerHTML = suivies.length ? suivies.map(r => {
+    const jours = r.jours_restants == null ? "pas encore de dépense"
+      : r.jours_restants < 7 ? `<span class="alerte">environ ${nb(r.jours_restants)} jours de budget</span>`
+      : `environ ${nb(r.jours_restants)} jours de budget`;
+    const depuis = r.depense_depuis != null && r.depuis
+      ? `<span><b>${usd(r.depense_depuis)}</b> distribués depuis le ${r.depuis.slice(8, 10)}/${r.depuis.slice(5, 7)}</span>` : "";
+    return `<article class="suivie">
+      <div>
+        <h3><a href="${esc(r.lien)}" target="_blank" rel="noopener">${esc(r.nom)}</a>${etiquettes(r)}</h3>
+        <div class="meta">${esc(r.organisateur)}, payé sur ${esc(plateformes(r))}</div>
+      </div>
+      <div>
+        <div class="reste">${usd(r.restant)} <small>restants sur ${usd(r.budget)}</small></div>
+        <div style="margin-top:8px">${jauge(r, true)}</div>
+      </div>
+      <div class="faits">
+        <span><b>${nb(r.taux, 2)} $</b> pour 1 000 vues</span>
+        <span><b>${nb(r.clippeurs)}</b> clippeurs</span>
+        <span><b>${nb(r.vues_par_clip)}</b> vues par clip</span>
+        <span><b>${usd(r.gain_par_clippeur)}</b> par clippeur</span>
+        <span>${jours}</span>
+        ${depuis}
+        <span style="margin-left:auto"><button class="btn petit" data-suivre="${esc(r.id)}" data-on="0">Ne plus suivre</button></span>
+      </div>
+    </article>`;
+  }).join("") : `<div class="cadre vide">Tu ne suis aucune campagne. Ouvre le radar et choisis « Suivre » sur celles que tu as rejointes.</div>`;
+
+  const neuves = etat.campagnes.filter(r => r.langue === "fr" && !etat.suivies.includes(r.id) && r.restant >= 500)
+    .sort((a, b) => a.age_jours - b.age_jours).slice(0, 6);
+  $("nouveautes").innerHTML = tableau(neuves, "Rien de nouveau en français pour l'instant.");
+
+  const m = etat.marche;
+  $("marche").textContent = m ? `Les campagnes affichent en général ${nb(m.taux_median, 2)} $ pour 1 000 vues et en paient réellement ${nb(m.taux_reel, 2)} $, une fois comptés les plafonds et les vues refusées. Un clippeur touche ${usd(m.gain_median)} sur une campagne type. Il reste ${usd(m.restant)} à distribuer sur l'ensemble du catalogue.` : "";
+}
+
+const CLASSE = {"à cibler": "cibler", "à surveiller": "surveiller", "à éviter": "eviter"};
+const avis = r => `<span class="avis ${CLASSE[r.verdict] || ""}"><b>${nb(r.score)}</b> ${esc(r.verdict)}</span>`;
+const raisons = r => (r.pour.length || r.contre.length)
+  ? `<div class="raisons">${r.pour.map(t => `<span class="p">+ ${esc(t)}</span>`).concat(r.contre.map(t => `<span class="c">− ${esc(t)}</span>`)).join(" ; ")}</div>` : "";
+
+const ETATS = {"prêt": ["pret", "prêt, à publier"], "programmé": ["programme", "programmé"], "publié": ["publie", "publié"],
+  "attente": ["attente", "attend l'approbation"], "brouillon": ["brouillon", "brouillon, date à régler"]};
+const aujourdhui = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
+const DECLARER = {
+  "Call of Duty MW4": "https://contentrewards.com/c/campaigns/18496202-6029-4a29-a44c-9fc33678fcb9",
+  "Stranger Than Heaven": "https://contentrewards.com/c/campaigns/31f90db6-4cce-4632-a4b0-bf572e90b199",
+  "Matchday FC": "https://contentrewards.com/c/campaigns/131887ef-850d-466c-aca6-c8834d81981e",
+};
+
+function lignePub(e) {
+  const [cls, texte] = ETATS[e.etat] || ["", e.etat];
+  const fait = e.etat === "publié";
+  return `<div class="pub${fait ? " fait" : ""}">
+    <span class="h">${esc(e.heure)}</span>
+    <span class="pl">${esc(NOMS[e.plateforme] || e.plateforme)}</span>
+    <span class="c"><b>${esc(e.campagne)}</b> <span>${esc(e.clip)}, dans ${esc(e.dossier)}</span>${e.etat === "prêt" || e.etat === "programmé" ? `<span class="delai">À déclarer sur Content Rewards dans les 30 minutes après la sortie</span>` : ""}</span>
+    <span class="etat ${cls}">${esc(texte)}</span>
+    <span>${e.lien ? `<a class="btn petit" href="${esc(e.lien)}" target="_blank" rel="noopener" style="text-decoration:none">Voir</a> ` : ""}${e.etat === "attente" ? "" : `<button class="btn petit" data-pub="${esc(e.id)}" data-etat="${fait ? "prêt" : "publié"}">${fait ? "Annuler" : "C'est publié"}</button>`}${DECLARER[e.campagne] && e.etat !== "attente" ? ` <a class="btn petit" href="${DECLARER[e.campagne]}" target="_blank" rel="noopener" style="text-decoration:none">Déclarer</a>` : ""}</span>
+  </div>`;
+}
+
+function dessinerPlanning() {
+  const plan = etat.planning || [], jour = aujourdhui();
+  const duJour = plan.filter(e => e.date === jour);
+  const suivant = plan.filter(e => e.date > jour && e.etat !== "publié")[0];
+  $("pub-jour").innerHTML = duJour.length ? `<div class="jour">${duJour.map(lignePub).join("")}</div>`
+    : `<div class="cadre vide">Rien à publier aujourd'hui.${suivant ? ` Prochaine publication : ${esc(suivant.campagne)} sur ${esc(NOMS[suivant.plateforme])}, le ${suivant.date.slice(8)}/${suivant.date.slice(5, 7)} à ${esc(suivant.heure)}.` : ""}</div>`;
+  const jours = [...new Set(plan.map(e => e.date))];
+  $("jours").innerHTML = jours.length ? jours.map(d => {
+    const nom = new Date(d + "T12:00").toLocaleDateString("fr-FR", {weekday: "long", day: "numeric", month: "long"});
+    return `<div class="jour${d === jour ? " aujourdhui" : ""}"><h3>${esc(nom[0].toUpperCase() + nom.slice(1))}${d === jour ? "<small>aujourd'hui</small>" : ""}</h3>${plan.filter(e => e.date === d).map(lignePub).join("")}</div>`;
+  }).join("") : `<div class="cadre vide">Aucun planning pour l'instant. Demande à l'agent d'en préparer un.</div>`;
+}
+
+function dessinerTaches() {
+  const l = [...etat.taches].sort((a, b) => a.fait - b.fait);
+  $("taches").innerHTML = l.length ? l.map(t => `
+    <li class="${t.fait ? "fait" : ""}">
+      <input type="checkbox" id="t-${esc(t.id)}" data-tache="${esc(t.id)}"${t.fait ? " checked" : ""}>
+      <div><label for="t-${esc(t.id)}">${esc(t.texte)}</label><span class="qui ${t.qui === "agent" ? "" : "toi"}">${t.qui === "agent" ? "l'agent s'en charge" : "à toi"}</span>
+        ${t.detail ? `<p>${esc(t.detail)}</p>` : ""}</div>
+      <button class="x" data-suppr="${esc(t.id)}">Retirer</button>
+    </li>`).join("") : `<li style="display:block;color:var(--gris)">Rien à faire pour l'instant.</li>`;
+}
+
+function dessinerCibles() {
+  const l = etat.campagnes.filter(r => r.langue === "fr" && r.verdict === "à cibler").sort((a, b) => b.score - a.score).slice(0, 6);
+  $("cibles").innerHTML = l.length ? l.map(r => {
+    const suivi = etat.suivies.includes(r.id);
+    return `<article class="cible">
+      <div>
+        <h3><a href="${esc(r.lien)}" target="_blank" rel="noopener">${esc(r.nom)}</a>${etiquettes(r)}</h3>
+        <div class="meta">${nb(r.taux, 2)} $ pour 1 000 vues sur ${esc(plateformes(r))}, ${usd(r.restant)} restants, ${nb(r.clippeurs)} clippeurs</div>
+        <ul>${r.pour.map(t => `<li class="p">${esc(t)}</li>`).join("")}${r.contre.map(t => `<li class="c">${esc(t)}</li>`).join("")}</ul>
+      </div>
+      <div class="droite">${avis(r)}
+        <button class="btn petit" data-suivre="${esc(r.id)}" data-on="${suivi ? 0 : 1}">${suivi ? "Ne plus suivre" : "Suivre"}</button>
+      </div>
+    </article>`;
+  }).join("") : `<div class="cadre vide">Aucune campagne en français n'est notée « à cibler » en ce moment.</div>`;
+}
+
+function tableau(lignes, vide) {
+  if (!lignes.length) return `<div class="vide">${esc(vide)}</div>`;
+  return `<table><thead><tr><th>Campagne</th><th>Avis</th><th class="n">Pour 1 000 vues</th><th>Budget restant</th><th class="n">Clippeurs</th><th class="n">Vues par clip</th><th class="n">Par clippeur</th><th>Plateformes</th><th></th></tr></thead><tbody>` +
+    lignes.map(r => {
+      const suivi = etat.suivies.includes(r.id);
+      return `<tr>
+        <td><a class="nom" href="${esc(r.lien)}" target="_blank" rel="noopener">${esc(r.nom)}</a>${etiquettes(r)}<div class="org">${esc(r.organisateur)}</div>${raisons(r)}</td>
+        <td>${avis(r)}</td>
+        <td class="n">${r.taux == null ? "–" : nb(r.taux, 2) + " $"}</td>
+        <td class="budget">${jauge(r)}<span>${usd(r.restant)} sur ${usd(r.budget)}</span></td>
+        <td class="n">${nb(r.clippeurs)}</td>
+        <td class="n">${nb(r.vues_par_clip)}</td>
+        <td class="n">${usd(r.gain_par_clippeur)}</td>
+        <td>${esc(plateformes(r))}</td>
+        <td><button class="btn petit" data-suivre="${esc(r.id)}" data-on="${suivi ? 0 : 1}">${suivi ? "Ne plus suivre" : "Suivre"}</button></td>
+      </tr>`;
+    }).join("") + `</tbody></table>`;
+}
+
+function dessinerRadar() {
+  const q = $("q").value.trim().toLowerCase();
+  const tri = $("tri").value;
+  let l = etat.campagnes.filter(r =>
+    (!$("f-fr").checked || r.langue === "fr") &&
+    (!$("f-libre").checked || !r.candidature) &&
+    (!$("f-yt").checked || r.plateformes.split(",").includes("yo")) &&
+    (!$("f-neuf").checked || r.age_jours <= 7) &&
+    (!$("f-cible").checked || r.verdict === "à cibler") &&
+    (!q || (r.nom + " " + r.organisateur + " " + r.categories).toLowerCase().includes(q)));
+  l.sort(tri === "age" ? (a, b) => a.age_jours - b.age_jours : (a, b) => (b[tri] ?? -1) - (a[tri] ?? -1));
+  $("compte").textContent = l.length > 100 ? `${nb(l.length)} campagnes, les 100 premières sont affichées.` : `${nb(l.length)} campagne${l.length > 1 ? "s" : ""}.`;
+  $("table").innerHTML = tableau(l.slice(0, 100), "Aucune campagne ne correspond à ces filtres.");
+}
+
+function dessinerClips() {
+  $("dossiers").innerHTML = etat.dossiers.length ? etat.dossiers.map((d, i) => `
+    <details class="dossier"${i === 0 ? " open" : ""}>
+      <summary>${esc(d.dossier)}<span>${d.clips.length} clip${d.clips.length > 1 ? "s" : ""}</span></summary>
+      ${d.description ? `<pre class="desc">${esc(d.description)}</pre>` : ""}
+      <div class="actions">
+        ${d.description ? `<button class="btn petit" data-copier="${i}">Copier la description</button>` : ""}
+        <button class="btn petit" data-ouvrir="${esc(d.dossier)}">Ouvrir le dossier</button>
+      </div>
+      <div class="grille">${d.clips.map(c => `
+        <figure>
+          <video controls preload="${i === 0 ? "metadata" : "none"}" src="/clip/${encodeURIComponent(d.dossier)}/${encodeURIComponent(c.fichier)}"></video>
+          <figcaption>${esc(c.fichier)}<small>${nb(c.mo, 1)} Mo</small></figcaption>
+        </figure>`).join("")}</div>
+    </details>`).join("") : `<div class="cadre vide">Aucun clip terminé pour l'instant. Demande à l'agent d'en préparer.</div>`;
+}
+
+let formats = null;
+const LANGUES = {fr: "français", en: "anglais", es: "espagnol", de: "allemand", ja: "japonais", ar: "arabe", pt: "portugais", nl: "néerlandais"};
+const mediane = l => { const s = l.filter(v => v != null).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
+
+// petit rendu de la synthèse : titres « ## », listes « - », gras « **…** », le reste en paragraphes
+function rendreTexte(md) {
+  let h = "", liste = false;
+  for (const brut of md.split("\n")) {
+    const l = esc(brut.trim()).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+    if (l.startsWith("- ")) { if (!liste) { h += "<ul>"; liste = true; } h += `<li>${l.slice(2)}</li>`; continue; }
+    if (liste) { h += "</ul>"; liste = false; }
+    if (l.startsWith("## ")) h += `<h3>${l.slice(3)}</h3>`;
+    else if (l && !l.startsWith("# ")) h += `<p>${l}</p>`;
+  }
+  return h + (liste ? "</ul>" : "");
+}
+
+function dessinerFiches() {
+  const sel = $("fi-camp");
+  if (!sel.options.length) sel.innerHTML = formats.fiches.map(f => `<option value="${esc(f.id)}">${esc(f.nom.slice(0, 70))}</option>`).join("");
+  const f = formats.fiches.find(x => x.id === sel.value) || formats.fiches[0];
+  if (!f) { $("fiches").innerHTML = `<div class="cadre vide">Suis une campagne dans le radar pour obtenir sa fiche de format.</div>`; return; }
+  const liste = (titre, l, cls = "") => l && l.length ? `<h4>${titre}</h4><ul class="${cls}">${l.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
+  $("fiches").innerHTML =
+    (f.resume ? `<div class="regles" style="border-left-color:var(--indigo)"><h3>En une phrase</h3><p style="margin:0;max-width:76ch">${esc(f.resume)}</p></div>` : "") +
+    f.plateformes.map(p => {
+      const c = p.conseil;
+      return `<article class="fiche">
+        <h3>${esc(NOMS[p.plateforme] || p.plateforme)}</h3>
+        <p class="paie">${nb(p.taux, 2)} $ pour 1 000 vues, payé à partir de ${nb(p.seuil_vues)} vues par clip, ${usd(p.plafond)} maximum par clip</p>
+        ${c && c.note ? `<p class="note">${esc(c.note)}</p>` : ""}
+        ${p.n ? `<div class="mesure">
+          <span>D'après ${nb(p.n)} clips : ${esc(p.source)} sur ${esc(NOMS[p.plateforme] || p.plateforme)}</span>
+          <span><b>${nb(p.vues)}</b> vues en médiane</span>
+          <span>durée <b>${nb(p.duree_min)} à ${nb(p.duree_max)} s</b></span>
+          <span><b>${nb(p.coupes, 1)}</b> changement de plan pour 10 s</span>
+          <span><b>${nb(p.voix * 100)} %</b> avec une voix</span>
+        </div>` : `<div class="mesure">Aucun clip comparable mesuré sur cette appli.</div>`}
+        ${c ? liste("Le montage", c.montage) + liste("Phrases du haut qui ont marché ou à essayer", c.phrases, "phrases") + (c.legende ? `<h4>La légende</h4><p style="margin:0;max-width:76ch">${esc(c.legende)}</p>` : "")
+            : `<h4>Le montage</h4><p style="margin:0;max-width:76ch">Pas encore de conseil écrit pour cette campagne. Demande à l'agent « écris la fiche de format de cette campagne ».</p>`}
+        ${p.technique ? `<h4>Propre à l'appli</h4><p style="margin:0;max-width:76ch">${esc(p.technique)}</p>` : ""}
+        ${p.exemples.length ? `<h4>${p.exemples[0].propre ? "Les meilleurs clips de la campagne ici" : "Exemples de campagnes comparables"}</h4>
+          <div class="ex">${p.exemples.map(x => `<a href="${esc(x.lien)}" target="_blank" rel="noopener"><img loading="lazy" src="/planche/${esc(x.id)}.jpg" alt="Cinq images du clip">${nb(x.vues)} vues, voir le clip</a>`).join("")}</div>` : ""}
+      </article>`;
+    }).join("") +
+    (f.regles.length ? `<div class="regles"><h3>Règles de la campagne à ne pas oublier</h3><ul>${f.regles.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "");
+}
+
+function dessinerFormats() {
+  if (!formats) return;
+  dessinerFiches();
+  const b = $("f-maj");
+  b.disabled = formats.en_cours;
+  b.textContent = formats.en_cours ? "Analyse en cours…" : "Refaire l'analyse";
+  $("f-date").textContent = formats.date
+    ? `${nb(formats.clips.length)} clips mesurés, dernière analyse le ${new Date(formats.date).toLocaleDateString("fr-FR")}.`
+    : "Aucune analyse pour l'instant.";
+  if (formats.erreur) dire("L'analyse a échoué : " + formats.erreur);
+  $("f-synthese").innerHTML = formats.synthese ? rendreTexte(formats.synthese)
+    : `<p>Pas encore de synthèse écrite. Les chiffres ci-dessous sont calculés automatiquement ; pour l'interprétation, demande à l'agent « analyse les formats qui marchent ».</p>`;
+
+  const sel = $("f-camp");
+  if (!sel.options.length) {
+    const camps = [...new Map(formats.clips.map(c => [c.campagne_id, c.campagne])).entries()];
+    sel.innerHTML = `<option value="suivies">Mes campagnes</option><option value="fr">Campagnes en français</option><option value="jeu">Campagnes de jeux vidéo</option><option value="">Tous les clips mesurés</option>` +
+      camps.sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => `<option value="${esc(id)}">${esc(n.slice(0, 60))}</option>`).join("");
+  }
+  const v = sel.value, plat = $("f-plat").value, tri = $("f-tri").value;
+  const jeux = ["gaming", "streamer", "roblox", "kick", "esports"];
+  let l = formats.clips.filter(c =>
+    (v === "" || (v === "suivies" ? formats.suivies.includes(c.campagne_id) : v === "fr" ? c.langue === "fr"
+      : v === "jeu" ? c.categories.some(k => jeux.includes(k)) : c.campagne_id === v)) &&
+    (!plat || c.plateforme === plat));
+  l.sort((a, b) => (b[tri] ?? -1) - (a[tri] ?? -1));
+
+  const voix = l.filter(c => (c.voix_part ?? 0) >= 0.3).length;
+  $("f-chiffres").innerHTML = l.length ? `
+    <div><b>${nb(mediane(l.map(c => c.vues)))}</b><span>vues, clip médian</span></div>
+    <div><b>${nb(mediane(l.map(c => c.duree)))} s</b><span>durée médiane</span></div>
+    <div><b>${nb(mediane(l.map(c => c.coupes_par_10s)), 1)}</b><span>changements de plan pour 10 s</span></div>
+    <div><b>${nb(voix / l.length * 100)} %</b><span>des clips ont une voix qui parle</span></div>` : "";
+  $("f-compte").textContent = l.length > 40 ? `${nb(l.length)} clips, les 40 premiers sont affichés.` : `${nb(l.length)} clip${l.length > 1 ? "s" : ""}.`;
+  $("f-liste").innerHTML = l.length ? l.slice(0, 40).map(c => `
+    <article class="fclip">
+      <div>
+        <img loading="lazy" src="/planche/${esc(c.id)}.jpg" alt="Cinq images du clip">
+        <div class="reperes"><span>début</span><span>1 s</span><span>3 s</span><span>milieu</span><span>fin</span></div>
+      </div>
+      <div>
+        <div class="vues">${nb(c.vues)} <small>vues sur ${esc(NOMS[c.plateforme] || c.plateforme)}</small></div>
+        <dl>
+          <dt>Campagne</dt><dd>${esc(c.campagne.slice(0, 48))}</dd>
+          <dt>Durée</dt><dd>${nb(c.duree)} s</dd>
+          <dt>Rythme</dt><dd>${nb(c.coupes)} changements de plan, dont ${nb(c.coupes_3s)} dans les 3 premières secondes</dd>
+          <dt>Voix</dt><dd>${(c.voix_part ?? 0) >= 0.3 ? `parle ${nb(c.voix_part * 100)} % du temps, en ${esc(LANGUES[c.voix_langue] || c.voix_langue)}` : c.son ? "pas de voix, ou très peu" : "pas de son"}</dd>
+        </dl>
+        ${c.legende ? `<p class="leg">${esc(c.legende.slice(0, 160))}${c.legende.length > 160 ? "…" : ""}</p>` : ""}
+        <a class="btn petit" href="${esc(c.lien)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">Voir le clip</a>
+      </div>
+    </article>`).join("") : `<div class="cadre vide">Aucun clip mesuré pour ce choix.</div>`;
+}
+
+async function chargerFormats() {
+  formats = await (await fetch("/api/formats")).json();
+  dessinerFormats();
+  if (formats.en_cours) setTimeout(chargerFormats, 8000);
+}
+
+function dessiner() { dessinerJour(); dessinerPlanning(); dessinerTaches(); dessinerCibles(); dessinerRadar(); dessinerClips(); }
+
+async function charger() {
+  etat = await (await fetch("/api/etat")).json();
+  dessiner();
+}
+
+document.querySelectorAll(".nav button[data-page]").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".nav button[data-page]").forEach(x => x.removeAttribute("aria-current"));
+  b.setAttribute("aria-current", "page");
+  document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== b.dataset.page);
+  scrollTo(0, 0);
+});
+
+["q", "f-fr", "f-libre", "f-yt", "f-neuf", "f-cible", "tri"].forEach(id => $(id).addEventListener("input", dessinerRadar));
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  try {
+    if (b.dataset.suivre) {
+      etat.suivies = (await post("/api/suivre", {id: b.dataset.suivre, on: b.dataset.on === "1"})).suivies;
+      dessiner();
+      dire(b.dataset.on === "1" ? "Campagne suivie." : "Campagne retirée de ta liste.");
+    } else if (b.dataset.pub) {
+      etat.planning = (await post("/api/planning", {id: b.dataset.pub, etat: b.dataset.etat})).planning;
+      dessinerPlanning();
+      if (b.dataset.etat === "publié") dire("Déclare ce clip sur Content Rewards maintenant : après 30 minutes, il n'est plus payé.", true);
+    } else if (b.dataset.suppr) {
+      etat.taches = (await post("/api/taches", {action: "supprimer", id: b.dataset.suppr})).taches;
+      dessinerTaches();
+    } else if (b.dataset.copier) {
+      await navigator.clipboard.writeText(etat.dossiers[+b.dataset.copier].description);
+      dire("Description copiée.");
+    } else if (b.dataset.ouvrir) {
+      await post("/api/ouvrir", {dossier: b.dataset.ouvrir});
+    } else if (b.dataset.idee) {
+      $("demande").value = b.dataset.idee;
+      $("demande").focus();
+    }
+  } catch (err) { dire(err.message); }
+});
+
+document.addEventListener("change", async e => {
+  if (!e.target.dataset.tache) return;
+  try {
+    etat.taches = (await post("/api/taches", {action: "cocher", id: e.target.dataset.tache, fait: e.target.checked})).taches;
+    dessinerTaches();
+  } catch (err) { dire(err.message); }
+});
+$("t-form").onsubmit = async e => {
+  e.preventDefault();
+  const texte = $("t-texte").value.trim();
+  if (!texte) return;
+  try {
+    etat.taches = (await post("/api/taches", {action: "ajouter", texte})).taches;
+    $("t-texte").value = "";
+    dessinerTaches();
+  } catch (err) { dire(err.message); }
+};
+
+$("maj").onclick = async () => {
+  const b = $("maj");
+  b.disabled = true;
+  b.textContent = "Mise à jour en cours…";
+  try {
+    const r = await post("/api/maj");
+    if (r.ok) { await charger(); dire("Radar mis à jour."); }
+    else dire("La mise à jour a échoué : " + r.erreur);
+  } catch (err) { dire(err.message); }
+  b.disabled = false;
+  b.textContent = "Mettre à jour le radar";
+};
+
+["f-camp", "f-plat", "f-tri"].forEach(id => $(id).addEventListener("input", dessinerFormats));
+$("fi-camp").addEventListener("input", dessinerFiches);
+$("f-maj").onclick = async () => {
+  try {
+    await post("/api/formats/maj");
+    dire("Analyse lancée. Elle prend quelques minutes, tu peux continuer à utiliser l'outil.");
+    setTimeout(chargerFormats, 1500);
+  } catch (err) { dire(err.message); }
+};
+
+$("envoyer").onclick = async () => {
+  try {
+    const r = await post("/api/agent", {message: $("demande").value});
+    dire(r.ok ? "L'agent s'ouvre dans une nouvelle fenêtre." : r.erreur);
+  } catch (err) { dire(err.message); }
+};
+
+$("quitter").onclick = async () => {
+  try { await post("/api/quitter"); } catch (err) {}
+  document.body.innerHTML = `<main><h1>Outil fermé</h1><p class="releve">Tu peux fermer cet onglet. Pour le rouvrir, utilise le raccourci « Agent Clipping » du bureau.</p></main>`;
+};
+
+$("idees").innerHTML = [
+  "Fais le point sur mes campagnes et dis-moi quoi publier aujourd'hui",
+  "Lis les règles de Call of Duty MW4 et prépare les premiers clips",
+  "Lis les règles de Matchday FC et prépare les premiers clips",
+  "Relève les vues de mes dernières publications",
+].map(t => `<button class="btn petit" data-idee="${esc(t)}">${esc(t)}</button>`).join("");
+
+charger().catch(() => dire("Impossible de charger les données."));
+chargerFormats().catch(() => {});
+</script>
+</body>
+</html>

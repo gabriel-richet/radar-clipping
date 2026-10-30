@@ -1,0 +1,19 @@
+# Données générées (relevés, classements, mesures) : jamais publiées
+radar/campaigns.json
+radar/campagnes.csv
+radar/RADAR.md
+radar/history/
+analyse/formats/
+
+# Données personnelles de l'application
+agent/suivi.json
+agent/taches.json
+agent/planning.json
+
+# Vidéos et dossiers de clips
+*.mp4
+*clips*/
+
+__pycache__/
+*.pyc
+.venv/

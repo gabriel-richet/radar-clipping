@@ -1,0 +1,6 @@
+# Le radar (radar/) et l'application (agent/) n'utilisent que la bibliothèque standard de Python.
+# Ces paquets ne servent qu'à l'analyse des formats vidéo (analyse/formats_mesure.py),
+# qui demande aussi FFmpeg installé sur la machine.
+numpy
+pillow
+faster-whisper
